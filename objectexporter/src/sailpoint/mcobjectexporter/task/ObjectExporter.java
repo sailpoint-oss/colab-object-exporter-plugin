@@ -99,6 +99,7 @@ import javax.xml.xpath.XPathFactory;
  * Keith Smith found significant errors in the plugin and a botched attempt
  * to redesign my reverse tokenization code.  Keith has extensively rewritten
  * the plugin with the correct code and tested it.
+ * @author <a href="mailto:keith@mercurycyber.com">Keith Smith</a>
  * @author <a href="mailto:paul.wheeler@sailpoint.com">Paul Wheeler</a>
  */
 public class ObjectExporter extends BasePluginTaskExecutor {
@@ -1303,7 +1304,10 @@ public class ObjectExporter extends BasePluginTaskExecutor {
     } 
     return mergeMap;
   }
-  
+  /**
+   * getIgnoreMap reads in the files from the ignoreDirPath and sorts out the
+   * class names and object names for filtering out
+   */
   @SuppressWarnings("unchecked")
   private Map<String, String> getIgnoreMap() throws GeneralException, IOException {
     log.debug("XML-221 Entered getIgnoreMap, creating new HashMap");
@@ -1333,19 +1337,46 @@ public class ObjectExporter extends BasePluginTaskExecutor {
           }
           origXml = origXmlSB.toString();
           log.debug("XML-223 read file in, length="+origXml.length());
+          /*
+           * Initialize the Class Name and Object Name
+           */
           String xmlClassName = null;
           String xmlObjectName = null;
+          /*
+           * Find the class name
+           */
           Pattern classPattern = Pattern.compile("!DOCTYPE (.*?) PUBLIC");
           Matcher classMatcher = classPattern.matcher(origXml);
           if (classMatcher.find()) {
             xmlClassName = classMatcher.group(1).trim();
           }
           log.debug("XML-224 class name = "+xmlClassName);
+          /*
+           * Find the object name
+           */
           Pattern namePattern = Pattern.compile("name=\"(.*?)\"");
           Matcher nameMatcher = namePattern.matcher(origXml);
           if (nameMatcher.find()) {
             xmlObjectName = nameMatcher.group(1).trim();
           }
+          /*
+           * Added by Keith Smith 2024-02-28 for version 1.0.2
+           */
+          if("Identity".equals(xmlClassName)) {
+            // Let us see if this is a Workgroup
+            Pattern wgPattern = Pattern.compile("workgroup=\"(.*?)\"");
+            Matcher wgMatcher = wgPattern.matcher(origXml);
+            if (wgMatcher.find()) {
+              String wgValue = wgMatcher.group(1).trim();
+              if("true".equals(wgValue)) {
+                log.debug("XML-227 object "+xmlObjectName+"is a Workgroup");
+                xmlClassName="Workgroup";
+              }
+            }
+          }
+          /*
+           * Sum up and save to ignore map
+           */
           if (xmlClassName != null && xmlObjectName != null) {
             String objectKey = xmlClassName + "," + xmlObjectName;
             log.debug("XML-225 Adding " + objectKey + " ("+origXml.length()+" bytes)");

@@ -33,3 +33,6 @@ Newer changes:
 - Fixes to Description and Boolean tag issues
 - Fixes to CDATA tag issues
 - Addition of ZipFolder task to zip folders
+
+Version 1.0.2 Changes:
+- Fixed issue with ignore functionality on Workgroups
