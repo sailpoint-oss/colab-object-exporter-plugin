@@ -37,7 +37,10 @@ import org.w3c.dom.Attr;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.Text;
 
+import sailpoint.api.SailPointFactory;
 import sailpoint.api.SailPointContext;
+import sailpoint.object.Resolver;
+import sailpoint.object.SailPointObject;
 import sailpoint.object.Application;
 import sailpoint.object.Attributes;
 import sailpoint.object.AuditConfig;
@@ -56,7 +59,6 @@ import sailpoint.object.Profile;
 import sailpoint.object.QueryOptions;
 import sailpoint.object.RoleIndex;
 import sailpoint.object.RoleScorecard;
-import sailpoint.object.SailPointObject;
 import sailpoint.object.TaskDefinition;
 import sailpoint.object.TaskResult;
 import sailpoint.object.TaskSchedule;
@@ -544,7 +546,9 @@ public class ObjectExporter extends BasePluginTaskExecutor {
     while (objIterator != null && objIterator.hasNext() && !terminate) {
       Object[] thisObject = objIterator.next();
       String objectId = (String)thisObject[0];
-      SailPointObject object = context.getObjectById(currentClass, objectId);
+      // Bug found to be modifying the original object, need to just modify a copy.
+      SailPointObject objectCopy = (SailPointObject)(context.getObjectById(currentClass, objectId));
+      SailPointObject object=(SailPointObject)(objectCopy.deepCopy((Resolver)context));
       //
       // KCS 2022-06-15 Added bundleFilter for CHOA
       //
@@ -665,7 +669,7 @@ public class ObjectExporter extends BasePluginTaskExecutor {
           fileName = iiqDAName + ".xml";
           log.debug("XML-168 null input, using iiqDAName of "+fileName);
         }
-        log.debug("XML-194 objectName="+objectName+", checking strip metadata");
+        log.debug("XML-193 objectName="+objectName+", checking strip metadata");
         if (_stripMetadata) {
           // Remove anything that is not usually useful when migrating between environments
           if (classNameStr.equals("TaskDefinition")) {
@@ -674,11 +678,19 @@ public class ObjectExporter extends BasePluginTaskExecutor {
               for (Iterator<Map.Entry<String, Object>> it = taskDefAtts.entrySet().iterator(); it.hasNext(); ) {
                 Map.Entry<String, Object> entry = it.next();
                 if (((String)entry.getKey()).startsWith("TaskDefinition.")) {
-                  it.remove(); 
+                  log.debug("XML-180 Found entry: "+(String)entry.getKey()+" removing");
+                  it.remove();
                 }
                 // KCS Added 2020-06-19 the Host name does not get exported.
+                // KCS 2024-03-04 Do not remove this if reverse tokenization is being used
                 if (stripHostsFromTaskDefinitions && entry.getKey().startsWith("TaskSchedule.host")) {
-                  it.remove();
+                  log.debug("XML-181 Found entry: "+(String)entry.getKey()+" removing IF no tokenization");
+                  if(Util.isNullOrEmpty(_targetPropsFile)) {
+                    it.remove();
+                  }
+                  else {
+                    log.debug("XML-182 targetPropsFile found:"+_targetPropsFile+", to remove use reverse tokenization");
+                  }
                 }
                 // KCS Added 2020-06-19
                 // KCS Added 2022-03-08
@@ -724,7 +736,7 @@ public class ObjectExporter extends BasePluginTaskExecutor {
           }
           // KCS 2020-06-19 Adding remove profile function
           else if (classNameStr.equals("Bundle")) {
-            log.debug("XML-195 Found Bundle, checking delete profiles");
+            log.debug("XML-194 Found Bundle, checking delete profiles");
             if(_deleteProfiles) {
               log.debug("XML-195 removing profiles");
               List<Profile> profilesToRemove=new ArrayList<Profile>();
@@ -738,12 +750,12 @@ public class ObjectExporter extends BasePluginTaskExecutor {
             }
             log.debug("XML-196 Found Bundle, checking strip role metadata");
             if(_stripRoleMetadata) {
-              log.debug("XML-196 removing RoleIndex");
+              log.debug("XML-197 removing RoleIndex");
               RoleIndex roleIndex=((Bundle)object).getRoleIndex();
               if(roleIndex!=null) {
                 ((Bundle)object).setRoleIndex(null);
               }
-              log.debug("XML-196 removing RoleScorecard");
+              log.debug("XML-198 removing RoleScorecard");
               RoleScorecard roleScorecard=((Bundle)object).getScorecard();
               if(roleScorecard!=null) {
                 ((Bundle)object).add(new RoleScorecard());
@@ -752,7 +764,7 @@ public class ObjectExporter extends BasePluginTaskExecutor {
           }
         }
         String xml = ((AbstractXmlObject)object).toXml();
-        log.debug("XML-197 objectName="+objectName+", checking merge options");
+        log.debug("XML-199 objectName="+objectName+", checking merge options");
         if (_mergeCompareDirPath != null) {
           log.debug("XML-116 Found mergeCompareDirPath");
           if (classNameStr.equals("Configuration")
@@ -784,7 +796,7 @@ public class ObjectExporter extends BasePluginTaskExecutor {
         else {
           log.debug("XML-124 The mergeCompareDirPath is empty");
         }
-        log.debug("XML-198 objectName="+objectName+", cleaning the object properties");
+        log.debug("XML-183 objectName="+objectName+", cleaning the object properties");
         if (_removeIDs) {
           Cleaner cleaner = new Cleaner(propertiesToClean);
           xml = cleaner.clean(xml);
@@ -811,7 +823,7 @@ public class ObjectExporter extends BasePluginTaskExecutor {
             xml = xml.replace(id, resolvedObjectName);
           }
         }
-        log.debug("XML-199 objectName="+objectName+", checking reverse substitution on "+_targetPropsFile);
+        log.debug("XML-184 objectName="+objectName+", checking reverse substitution on "+_targetPropsFile);
         if (_targetPropsFile != null) {
           log.debug("XML-126 xml length before doReverseSubstitution :"+xml.length());
           xml = doReverseSubstitution(xml, _targetPropsFile);
@@ -840,7 +852,7 @@ public class ObjectExporter extends BasePluginTaskExecutor {
             */
           }
         }
-        log.debug("XML-199 objectName="+objectName+", checking reverse substitution on "+simpleTokenMap.toString());
+        log.debug("XML-186 objectName="+objectName+", checking reverse substitution on "+simpleTokenMap.toString());
         if (!simpleTokenMap.isEmpty()) {
           log.debug("XML-151 processing simple reverse tokenization");
           Iterator<Map.Entry<String, String>> it = simpleTokenMap.entrySet().iterator();
@@ -1032,7 +1044,7 @@ public class ObjectExporter extends BasePluginTaskExecutor {
         }
       }
       else {
-        log.debug("XML-193 no match to the pattern match");
+        log.debug("XML-187 no match to the pattern match");
       }
     }
     Util.flushIterator(objIterator);
