@@ -260,6 +260,7 @@ public class ObjectExporter extends BasePluginTaskExecutor {
   private TaskResult taskResult=null;
   private Map<String, String> simpleTokenMap = new HashMap<String, String>();
   private Map<String, Boolean> simpleTokenIgnoreCaseMap = new HashMap<String, Boolean>();
+  private static final String dq="\"";
 
   Map<String, String> iDNameMap = new HashMap<String, String>();
   @SuppressWarnings({"rawtypes","unchecked"})
@@ -826,7 +827,7 @@ public class ObjectExporter extends BasePluginTaskExecutor {
         log.debug("XML-184 objectName="+objectName+", checking reverse substitution on "+_targetPropsFile);
         if (_targetPropsFile != null) {
           log.debug("XML-126 xml length before doReverseSubstitution :"+xml.length());
-          xml = doReverseSubstitution(xml, _targetPropsFile);
+          xml = doReverseSubstitution(xml, classNameStr, objectName, _targetPropsFile);
           if(xml==null) {
             log.warn("XML-127 xml returned null from doReverseSubstitution");
             continue;
@@ -2041,7 +2042,8 @@ public class ObjectExporter extends BasePluginTaskExecutor {
   }
   
   @SuppressWarnings("unchecked")
-  public static String doReverseSubstitution(String xml, String revTargetFilePath) throws IOException {
+  public static String doReverseSubstitution(String xml, String rClass, String rName, String revTargetFilePath) throws IOException {
+    log.debug("XML-313 Entered doReverseSubstitution(xml,"+rClass+","+rName+","+revTargetFilePath);
     File f = new File(revTargetFilePath);
     Properties props = new Properties();
     String xpathExpr = null;
@@ -2053,14 +2055,34 @@ public class ObjectExporter extends BasePluginTaskExecutor {
       fio.close();
     }
     try {
-      log.debug("Creating Document for XPath work");
-      
+      log.debug("XML-320 Creating Document for XPath work");
+      /*
+       * KCS 2024-03-10 Adding disabled="false" to IdentityTrigger objects
+       */
+      if("IdentityTrigger".equals(rClass)) {
+        log.debug("XML-314 Found IdentityTrigger class");
+        int disabledIndex=xml.indexOf("disabled=");
+        int nameIndex=xml.indexOf("name=");
+        int typeIndex=xml.indexOf("type=");
+        log.debug("XML-315 Indexes: disabled="+disabledIndex+", name="+nameIndex+", type="+typeIndex);
+        if(disabledIndex > 0 && disabledIndex < nameIndex) {
+          log.debug("XML-316 found disabled= tag, skipping logic");
+        }
+        else {
+          String leftPart=xml.substring(0,nameIndex);
+          String rightPart=xml.substring(nameIndex);
+          log.debug("XML-317 leftPart=>"+leftPart+"< rightPart="+rightPart.substring(0,50));
+          xml=leftPart+"disabled="+dq+"false"+dq+" "+rightPart;
+          log.debug("XML-318 XML="+xml.substring(0,(leftPart.length()+70)));
+        }
+      }
       XPathFactory xPathfactory = XPathFactory.newInstance();
       DocumentBuilderFactory dbfact = DocumentBuilderFactory.newInstance();
       dbfact.setAttribute("http://apache.org/xml/features/nonvalidating/load-external-dtd", Boolean.valueOf(false));
       DocumentBuilder builder = dbfact.newDocumentBuilder();
       log.debug("XML-321 DocumentBuilder instance created");
       InputSource is = new InputSource();
+      // Here is where the xml input is read.
       is.setCharacterStream(new StringReader(xml));
       Document indexname_input = builder.parse(is);
       log.debug("XML-322 indexname_input Document created");
