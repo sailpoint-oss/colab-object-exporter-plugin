@@ -2120,6 +2120,7 @@ public class ObjectExporter extends BasePluginTaskExecutor {
                 log.trace("XML-390 Found a element with no nodes, it's an attribute:");
               }
               else {
+                log.trace("XML-391 iterating nodes");
                 for(int inode=0;inode<nllLen;inode++) {
                   Node node = nodeList.item(inode);
                   log.trace("XML-336 inode="+inode+" type="+node.getNodeType()+" checking xpathValue of "+xpathValue);
@@ -2129,11 +2130,13 @@ public class ObjectExporter extends BasePluginTaskExecutor {
                     //deleteNodes.add(node);
                     //while (node.hasChildNodes())node.removeChild(node.getFirstChild());
                     if (node.getNodeType() == 1) {
+                      log.trace("XML-392 nodetype=1, recursively calling node.removeChild");
                       Text neuContent = node.getOwnerDocument().createTextNode("");
                       while (node.hasChildNodes())node.removeChild(node.getFirstChild());
                       node.appendChild(neuContent);
                     }
                     else {
+                      log.trace("XML-393 nodetype!=1, calling parentNode.removeAttributeNode");
                       Element parentNode=((Attr)node).getOwnerElement();
                       parentNode.removeAttributeNode((Attr)node);
                     }
@@ -2144,6 +2147,7 @@ public class ObjectExporter extends BasePluginTaskExecutor {
                     //deleteNodes.add(node);
                     //while (node.hasChildNodes())node.removeChild(node.getFirstChild());
                     if (node.getNodeType() == 1) {
+                      log.trace("XML-394 nodetype=1, recursively calling node.removeChild");
                       //Text neuContent = node.getOwnerDocument().createTextNode("");
                       while (node.hasChildNodes())node.removeChild(node.getFirstChild());
                       //node.appendChild(neuContent);
@@ -2153,6 +2157,7 @@ public class ObjectExporter extends BasePluginTaskExecutor {
                       }
                     }
                     else {
+                      log.trace("XML-395 nodetype!=1, calling dparent.removeChild");
                       Element parentNode=((Attr)node).getOwnerElement();
                       parentNode.removeAttributeNode((Attr)node);
                       Node dparent=((Node)parentNode).getParentNode();
@@ -2166,12 +2171,15 @@ public class ObjectExporter extends BasePluginTaskExecutor {
 //                    parentNode.getParentNode().removeChild(parentNode);
 //                  }
                   else {
+                    log.trace("XML-396 xpathValue="+xpathValue+", this logic");
                     if (node.getNodeType() == 1) {
+                      log.trace("XML-397 nodetype=1, recursively calling node.removeChild");
                       Text neuContent = node.getOwnerDocument().createTextNode(xpathValue);
                       while (node.hasChildNodes())node.removeChild(node.getFirstChild());
                       node.appendChild(neuContent);
                     }
                     else {
+                      log.trace("XML-398 calling node.setNodeValue("+xpathValue+")");
                       node.setNodeValue(xpathValue);
                     }
                   }
